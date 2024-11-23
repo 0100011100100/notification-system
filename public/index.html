@@ -3,11 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>send notifications</title>
+    <title>Push Notifications Demo</title>
+    <style>
+        /* Dark theme styling */
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #1d1d1d;
+            color: white;
+            border: 1px solid #333;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #333;
+        }
+
+        input {
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+            border-radius: 5px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .notification-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
-    <h1>Push Notifications</h1>
-    <button id="enableNotifications">Enable Notifications</button>
+    <div class="container">
+        <h1>Push Notifications Demo</h1>
+
+        <!-- Enable Notifications Button -->
+        <button id="enableNotifications">Enable Notifications</button>
+
+        <!-- Send Notification Section -->
+        <div class="notification-form">
+            <button id="sendNotification">Send Notification</button>
+            <input id="messageInput" type="text" placeholder="Enter your message here..." />
+        </div>
+    </div>
 
     <script>
         const publicVapidKey = 'BKk2s89DdhQt92ACrKgB5H4H2m9jaoMfFZm8bdLaJTxHV9BKK1UtOF-ffJGDSxFeOddbjUsYG1Qu7iiBGtKtO5A';
@@ -38,6 +102,28 @@
         }
 
         document.getElementById('enableNotifications').addEventListener('click', enableNotifications);
+
+        // Function to send notification to all subscribers
+        async function sendNotification() {
+            const message = document.getElementById('messageInput').value;
+            if (!message) {
+                return alert('Please enter a message to send.');
+            }
+
+            const title = 'New Notification';
+
+            const response = await fetch('/sendNotification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, message })
+            });
+
+            const data = await response.json();
+            console.log(data);
+            alert('Notification sent!');
+        }
+
+        document.getElementById('sendNotification').addEventListener('click', sendNotification);
 
         // Helper function to convert VAPID key
         function urlBase64ToUint8Array(base64String) {
