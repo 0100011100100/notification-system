@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>send notifications</title>
+</head>
+<body>
+    <h1>Push Notifications</h1>
+    <button id="enableNotifications">Enable Notifications</button>
+
+    <script>
+        const publicVapidKey = 'BKk2s89DdhQt92ACrKgB5H4H2m9jaoMfFZm8bdLaJTxHV9BKK1UtOF-ffJGDSxFeOddbjUsYG1Qu7iiBGtKtO5A';
+
+        async function enableNotifications() {
+            if (!('serviceWorker' in navigator)) {
+                return alert('Service workers are not supported in your browser.');
+            }
+
+            // Register the service worker
+            const registration = await navigator.serviceWorker.register('/service-worker.js');
+            console.log('Service Worker registered:', registration);
+
+            // Subscribe to push notifications
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+            });
+
+            // Send the subscription to the backend
+            await fetch('/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription)
+            });
+
+            alert('Notifications enabled!');
+        }
+
+        document.getElementById('enableNotifications').addEventListener('click', enableNotifications);
+
+        // Helper function to convert VAPID key
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+    </script>
+</body>
+</html>

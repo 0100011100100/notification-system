@@ -1,32 +1,58 @@
-const WebSocket = require('ws');
-const http = require('http');
+// Import required modules
+const express = require('express');
+const webpush = require('web-push');
+const bodyParser = require('body-parser');
+const path = require('path');
+require('dotenv').config(); // Load environment variables from .env file
 
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('WebSocket server running');
+// Initialize Express
+const app = express();
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Retrieve VAPID keys from environment variables
+const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
+const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
+
+// Set VAPID details for web-push
+webpush.setVapidDetails(
+    'mailto:alsowebhook@gmail.com', // Replace with your contact email
+    publicVapidKey,
+    privateVapidKey
+);
+
+// In-memory storage for subscriptions (use a database in production)
+const subscriptions = [];
+
+// Endpoint to save subscriptions
+app.post('/subscribe', (req, res) => {
+    const subscription = req.body;
+    subscriptions.push(subscription);  // Add the new subscription to the list
+    console.log('New subscription added:', subscription);
+    res.status(201).json({});
 });
 
-const wss = new WebSocket.Server({ server });
+// Endpoint to send notifications to all subscribed users
+app.post('/sendNotification', (req, res) => {
+    const { title, message } = req.body;
+    const payload = JSON.stringify({ title, message });
 
-wss.on('connection', (ws) => {
-    console.log('New client connected');
-
-    ws.on('message', (message) => {
-        console.log('Received:', message);
-
-        // Broadcast the message to all clients
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
-            }
-        });
+    // Send notifications to each subscribed user
+    subscriptions.forEach(subscription => {
+        webpush.sendNotification(subscription, payload)
+            .catch(err => console.error('Error sending notification:', err));
     });
 
-    ws.on('close', () => {
-        console.log('Client disconnected');
-    });
+    res.status(200).json({ message: 'Notifications sent!' });
 });
 
-server.listen(8080, () => {
-    console.log('WebSocket server running on port 8080');
+// Serve the frontend page (if needed)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start the server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });
