@@ -1,67 +1,72 @@
 const express = require('express');
 const webPush = require('web-push');
-const path = require('path');
 const bodyParser = require('body-parser');
-const cors = require('cors');
+const path = require('path');
 
+// Initialize Express app
 const app = express();
-const port = 3000;
 
-// VAPID Keys - Replace these with your own VAPID keys
+// Serve static files (e.g., for the service worker)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.json());
+
+// Your VAPID keys
 const publicVapidKey = 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4';
 const privateVapidKey = 'oGv-7xJ63OpthC4IYU_Q_HH7DepSmtAveYxFi7CzgkY';
 
-// Store subscriptions (in-memory for simplicity, use a database in production)
+// Set VAPID details
+webPush.setVapidDetails(
+    'mailto:alsowebhook@gmail.com',
+    publicVapidKey,
+    privateVapidKey
+);
+
+// In-memory store for subscriptions
 let subscriptions = [];
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Serve the index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Endpoint to receive subscription data from the client
+// Endpoint to handle subscription
 app.post('/subscribe', (req, res) => {
     const subscription = req.body;
+
+    // Save the subscription to the list (In production, use a database)
     subscriptions.push(subscription);
     console.log('New subscription:', subscription);
-    res.status(201).json({});
+
+    res.status(201).json({ message: 'Subscription added successfully' });
 });
 
-// Endpoint to send push notifications to all subscribers
+// Endpoint to handle sending notifications
 app.post('/send-notification', (req, res) => {
     const { message } = req.body;
-    
-    // Send notification to all subscriptions
-    const payload = JSON.stringify({
-        title: 'New Notification',
-        body: message,
+
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const payload = JSON.stringify({ body: message });
+
+    const promises = subscriptions.map(subscription => {
+        return webPush.sendNotification(subscription, payload)
+            .catch(error => {
+                console.error('Error sending notification', error);
+            });
     });
 
-    const options = {
-        vapidDetails: {
-            subject: 'mailto:alsowebhook@gmail.com',
-            publicKey: publicVapidKey,
-            privateKey: privateVapidKey,
-        },
-        TTL: 60,
-    };
-
-    // Send to all subscriptions
-    Promise.all(subscriptions.map(subscription => {
-        return webPush.sendNotification(subscription, payload, options);
-    }))
-    .then(() => res.status(200).json({ message: 'Notification sent to all subscribers!' }))
-    .catch(err => {
-        console.error('Error sending notification', err);
+    // Wait for all notifications to be sent
+    Promise.all(promises).then(() => {
+        res.status(200).json({ message: 'Notification sent to all subscribers' });
+    }).catch(err => {
         res.status(500).json({ error: 'Failed to send notifications' });
     });
 });
 
-// Start server
-app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+// Serve the frontend HTML
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
