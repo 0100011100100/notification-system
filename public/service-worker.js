@@ -1,7 +1,18 @@
-self.addEventListener('push', (event) => {
-    const data = event.data.json();
-    self.registration.showNotification(data.title, {
-        body: data.message,
-        icon: '/icon.png'  // Optional: You can add a custom icon for the notification
-    });
-});
+self.addEventListener('push', function(event) {
+    let options = {
+      body: event.data.text(),
+      icon: '/assets/icons/icon-192x192.png',
+      badge: '/assets/icons/icon-192x192.png'
+    };
+  
+    event.waitUntil(
+      self.registration.showNotification('New Notification', options)
+    );
+  });
+  
+  self.addEventListener('notificationclick', function(event) {
+    event.notification.close();
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  });  
