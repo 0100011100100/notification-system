@@ -1,48 +1,67 @@
 const express = require('express');
-const webpush = require('web-push');
+const webPush = require('web-push');
+const path = require('path');
 const bodyParser = require('body-parser');
+const cors = require('cors');
+
 const app = express();
 const port = 3000;
 
-// VAPID keys (use the ones you generated)
+// VAPID Keys - Replace these with your own VAPID keys
 const publicVapidKey = 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4';
 const privateVapidKey = 'oGv-7xJ63OpthC4IYU_Q_HH7DepSmtAveYxFi7CzgkY';
 
-// Set VAPID keys for web-push
-webpush.setVapidDetails('mailto:alsowebhook@gmail.com', publicVapidKey, privateVapidKey);
-
-// Middleware
-app.use(bodyParser.json());
-app.use(express.static('public'));
-
-// Store subscriptions
+// Store subscriptions (in-memory for simplicity, use a database in production)
 let subscriptions = [];
 
-// Subscribe endpoint
-app.post('/subscribe', (req, res) => {
-  const subscription = req.body;
-  subscriptions.push(subscription);
-  res.status(201).json({});
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve the index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Send notification endpoint
+// Endpoint to receive subscription data from the client
+app.post('/subscribe', (req, res) => {
+    const subscription = req.body;
+    subscriptions.push(subscription);
+    console.log('New subscription:', subscription);
+    res.status(201).json({});
+});
+
+// Endpoint to send push notifications to all subscribers
 app.post('/send-notification', (req, res) => {
-  const { message } = req.body;
+    const { message } = req.body;
+    
+    // Send notification to all subscriptions
+    const payload = JSON.stringify({
+        title: 'New Notification',
+        body: message,
+    });
 
-  const payload = JSON.stringify({ title: 'New Notification', message });
+    const options = {
+        vapidDetails: {
+            subject: 'mailto:alsowebhook@gmail.com',
+            publicKey: publicVapidKey,
+            privateKey: privateVapidKey,
+        },
+        TTL: 60,
+    };
 
-  // Send a notification to all subscriptions
-  Promise.all(subscriptions.map(sub => 
-    webpush.sendNotification(sub, payload)
-  ))
-    .then(() => res.status(200).json({ message: 'Notification sent successfully' }))
+    // Send to all subscriptions
+    Promise.all(subscriptions.map(subscription => {
+        return webPush.sendNotification(subscription, payload, options);
+    }))
+    .then(() => res.status(200).json({ message: 'Notification sent to all subscribers!' }))
     .catch(err => {
-      console.error('Error sending notification:', err);
-      res.status(500).json({ error: 'Error sending notification' });
+        console.error('Error sending notification', err);
+        res.status(500).json({ error: 'Failed to send notifications' });
     });
 });
 
 // Start server
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running on http://localhost:${port}`);
 });

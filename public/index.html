@@ -10,6 +10,8 @@
     <div class="container">
         <h1>Push Notifications</h1>
         <button id="subscribe" class="btn">Enable Notifications</button>
+        <textarea id="message" placeholder="Write your message here" rows="5"></textarea>
+        <button id="sendMessage" class="btn">Send Notification</button>
         <div id="status"></div>
     </div>
 
@@ -42,6 +44,28 @@
                     alert('Permission denied for notifications.');
                 }
             });
+        });
+
+        // Handle sending a message
+        document.getElementById('sendMessage').addEventListener('click', () => {
+            const message = document.getElementById('message').value;
+            if (message) {
+                // Send message to the server
+                fetch('/send-notification', {
+                    method: 'POST',
+                    body: JSON.stringify({ message: message }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(response => response.json())
+                  .then(data => {
+                      alert('Notification sent to all subscribers!');
+                  }).catch(err => {
+                      console.error('Error sending notification:', err);
+                  });
+            } else {
+                alert('Please write a message to send.');
+            }
         });
 
         // Function to subscribe the user to push notifications

@@ -1,18 +1,20 @@
-self.addEventListener('push', function(event) {
-    let options = {
-      body: event.data.text(),
-      icon: '/assets/icons/icon-192x192.png',
-      badge: '/assets/icons/icon-192x192.png'
+self.addEventListener('push', event => {
+    const data = event.data ? event.data.json() : {};
+    
+    const options = {
+        body: data.body,
+        icon: 'icon.png',
+        badge: 'badge.png'
     };
-  
+
     event.waitUntil(
-      self.registration.showNotification('New Notification', options)
+        self.registration.showNotification(data.title || 'Push Notification', options)
     );
-  });
-  
-  self.addEventListener('notificationclick', function(event) {
+});
+
+self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(
-      clients.openWindow('/')
+        clients.openWindow('/')
     );
-  });  
+});
