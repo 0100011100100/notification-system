@@ -3,102 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Push Notifications</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Notification System</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding-top: 20px;
+        }
+
+        button {
+            background-color: #6200ea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #3700b3;
+        }
+
+        #message-container {
+            margin-top: 20px;
+            border-radius: 10px;
+            padding: 10px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            background-color: #444;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .message:hover {
+            background-color: #555;
+        }
+
+        .notification {
+            background-color: #ff9800;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 16px;
+            display: none; /* Hide initially */
+        }
+
+        input, textarea {
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        input[type="text"] {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Push Notifications</h1>
-        <button id="subscribe" class="btn">Enable Notifications</button>
-        <textarea id="message" placeholder="Write your message here" rows="5"></textarea>
-        <button id="sendMessage" class="btn">Send Notification</button>
-        <div id="status"></div>
+        <h1>Push Notification System</h1>
+
+        <button id="enableNotificationsBtn">Enable Notifications</button>
+
+        <div id="notification" class="notification">
+            Notification sent!
+        </div>
+
+        <div>
+            <h2>Send Message</h2>
+            <input type="text" id="messageInput" placeholder="Enter message to send...">
+            <button id="sendMessageBtn">Send Message</button>
+        </div>
+
+        <div id="message-container"></div>
     </div>
 
     <script>
-        const publicVapidKey = 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4';
+        // Check for push notification support
+        if ('Notification' in window && 'serviceWorker' in navigator) {
+            // Enable notifications button
+            const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
+            const sendMessageBtn = document.getElementById('sendMessageBtn');
+            const messageInput = document.getElementById('messageInput');
+            const messageContainer = document.getElementById('message-container');
+            const notification = document.getElementById('notification');
+            let subscription = null;
 
-        // Check if the browser supports Push Notifications and Service Workers
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js').then(registration => {
-                    console.log('Service Worker registered', registration);
-                }).catch(error => {
-                    console.error('Service Worker registration failed:', error);
-                });
-            });
-        } else {
-            alert('Push Notifications or Service Workers are not supported in your browser.');
-        }
+            // Register Service Worker
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => {
+                    console.log('Service Worker Registered');
+                    // Ask for permission to show notifications
+                    enableNotificationsBtn.addEventListener('click', () => {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === 'granted') {
+                                reg.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4'
+                                }).then(sub => {
+                                    subscription = sub;
+                                    console.log('Subscription successful:', subscription);
+                                    // Send subscription to the server
+                                    fetch('/subscribe', {
+                                        method: 'POST',
+                                        body: JSON.stringify(subscription),
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        }
+                                    }).then(() => {
+                                        enableNotificationsBtn.disabled = true;
+                                        notification.style.display = 'block';
+                                    }).catch(err => console.error('Failed to subscribe:', err));
+                                }).catch(err => console.error('Subscription failed:', err));
+                            } else {
+                                console.log('Notification permission denied');
+                            }
+                        });
+                    });
+                }).catch(err => console.error('Service Worker Registration failed:', err));
 
-        // Handle subscription
-        document.getElementById('subscribe').addEventListener('click', () => {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    subscribeUserToPush();
-                } else {
-                    alert('Permission denied for notifications.');
-                }
-            });
-        });
-
-        // Handle sending a message
-        document.getElementById('sendMessage').addEventListener('click', () => {
-            const message = document.getElementById('message').value;
-            if (message) {
-                fetch('/send-notification', {
-                    method: 'POST',
-                    body: JSON.stringify({ message: message }),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }).then(response => response.json())
-                  .then(data => {
-                      alert('Notification sent to all subscribers!');
-                  }).catch(err => {
-                      console.error('Error sending notification:', err);
-                  });
-            } else {
-                alert('Please write a message to send.');
-            }
-        });
-
-        // Function to subscribe the user to push notifications
-        function subscribeUserToPush() {
-            navigator.serviceWorker.ready.then(registration => {
-                registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlB64ToUint8Array(publicVapidKey)
-                }).then(subscription => {
-                    console.log('User is subscribed:', subscription);
-                    fetch('/subscribe', {
+            // Send message button
+            sendMessageBtn.addEventListener('click', () => {
+                const message = messageInput.value;
+                if (message && subscription) {
+                    fetch('/send-notification', {
                         method: 'POST',
-                        body: JSON.stringify(subscription),
+                        body: JSON.stringify({ message }),
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     }).then(response => response.json())
                       .then(data => {
-                          document.getElementById('status').innerText = 'You are subscribed to notifications!';
-                      }).catch(err => {
-                          console.error('Failed to send subscription to server:', err);
-                      });
-                }).catch(err => {
-                    console.error('Failed to subscribe the user:', err);
-                });
+                          console.log(data.message);
+                          addMessageToContainer(message);
+                      })
+                      .catch(err => console.error('Failed to send notification:', err));
+                }
             });
-        }
 
-        // Utility function to convert VAPID key to ArrayBuffer
-        function urlB64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
+            // Add message to the message container (User interface)
+            function addMessageToContainer(message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.innerHTML = message;
+                messageElement.addEventListener('click', () => {
+                    alert(`You replied to: ${message}`);
+                });
+                messageContainer.appendChild(messageElement);
             }
-            return outputArray;
+        } else {
+            alert('Your browser does not support push notifications');
         }
     </script>
 </body>
