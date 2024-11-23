@@ -1,58 +1,63 @@
-// Import required modules
 const express = require('express');
 const webpush = require('web-push');
 const bodyParser = require('body-parser');
-const path = require('path');
-require('dotenv').config(); // Load environment variables from .env file
 
-// Initialize Express
+// Initialize the app
 const app = express();
+const port = 8080;
+
+// Middleware to parse JSON bodies
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Retrieve VAPID keys from environment variables
-const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
-const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
+// VAPID Keys (replace with your own generated keys)
+const publicKey = 'BN0HFyIuQIRGL0z77fuxu5FoOt21UoQ5Ub0rP6Xxwbk3BjuKdj18FwC_fBHnOGbib5Tiwqq73r47hu2iKGq6PVo';
+const privateKey = 'tsGtUtcR0ngu0PJX0J7e3h1EbUXXWveNI0qOjIV1SZk';
 
-// Set VAPID details for web-push
+// Set VAPID details
 webpush.setVapidDetails(
-    'mailto:alsowebhook@gmail.com', // Replace with your contact email
-    publicVapidKey,
-    privateVapidKey
+  'mailto:your-email@example.com', // Replace with your contact email
+  publicKey,
+  privateKey
 );
 
-// In-memory storage for subscriptions (use a database in production)
-const subscriptions = [];
+// Array to store subscriptions (in-memory storage for now)
+let subscriptions = [];
 
-// Endpoint to save subscriptions
+// Serve the public key to clients
+app.get('/public-key', (req, res) => {
+  res.send({ publicKey });
+});
+
+// Endpoint to add new subscription
 app.post('/subscribe', (req, res) => {
-    const subscription = req.body;
-    subscriptions.push(subscription);  // Add the new subscription to the list
-    console.log('New subscription added:', subscription);
-    res.status(201).json({});
+  const subscription = req.body;
+
+  // Add the new subscription to the array
+  subscriptions.push(subscription);
+  console.log('New subscription added:', subscription);
+
+  res.status(201).json({});
 });
 
-// Endpoint to send notifications to all subscribed users
-app.post('/sendNotification', (req, res) => {
-    const { title, message } = req.body;
-    const payload = JSON.stringify({ title, message });
+// Endpoint to send notifications to all subscribers
+app.post('/send-notification', (req, res) => {
+  const notificationPayload = req.body;
 
-    // Send notifications to each subscribed user
-    subscriptions.forEach(subscription => {
-        webpush.sendNotification(subscription, payload)
-            .catch(err => console.error('Error sending notification:', err));
-    });
+  // Loop through all subscriptions and send the notification
+  const promises = subscriptions.map((subscription) => {
+    return webpush.sendNotification(subscription, JSON.stringify(notificationPayload))
+      .catch(err => {
+        console.error('Error sending notification:', err);
+      });
+  });
 
-    res.status(200).json({ message: 'Notifications sent!' });
-});
-
-// Serve the frontend page (if needed)
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  // Wait for all notifications to be sent
+  Promise.all(promises).then(() => {
+    res.status(200).send('Notifications sent!');
+  });
 });
 
 // Start the server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
 });
