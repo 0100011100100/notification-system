@@ -3,12 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Notification System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <div id="messages-container"></div>
+        <div id="chat-box">
+            <input type="text" id="chat-input" placeholder="Type a message..." />
+        </div>
+    </div>
 
-    <!-- Firebase Configuration -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAe0hXfAJ0ijKNiGgAVfv4zG1ngADF2E4c",
             authDomain: "chatapp-90c78.firebaseapp.com",
@@ -19,9 +29,11 @@
             databaseURL: "https://chatapp-90c78-default-rtdb.firebaseio.com"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // Function to send messages
         function sendMessage(username, messageText, profilePicUrl) {
             db.ref('messages').push().set({
                 username: username,
@@ -31,6 +43,7 @@
             });
         }
 
+        // Listen for new messages
         function listenForMessages() {
             db.ref('messages').on('child_added', (snapshot) => {
                 const messageData = snapshot.val();
@@ -38,34 +51,7 @@
             });
         }
 
-        function checkUserBan(username) {
-            db.ref('bannedUsers/' + username).once('value').then(snapshot => {
-                if (snapshot.val()) {
-                    window.location.href = 'login.html';
-                }
-            });
-        }
-
-        function hasDeveloperBadge(username) {
-            return db.ref('users/' + username + '/badges/developer').once('value').then(snapshot => !!snapshot.val());
-        }
-
-        window.onload = function() {
-            const username = localStorage.getItem('username') || 'Guest';
-            const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
-
-            checkUserBan(username);
-            hasDeveloperBadge(username).then(hasBadge => {
-                if (hasBadge) {
-                    document.getElementById('developer-badge').style.display = 'inline-block';
-                }
-            });
-
-            document.getElementById('username-display').textContent = username;
-            document.getElementById('profile-pic').src = profilePictureUrl;
-            listenForMessages();
-        };
-
+        // Add message to chat container
         function addMessageToChat(username, messageText, profilePicUrl) {
             const message = document.createElement('div');
             message.classList.add('message');
@@ -73,87 +59,32 @@
             const profileImage = document.createElement('img');
             profileImage.src = profilePicUrl || 'default-profile-pic.png';
             profileImage.classList.add('profile-pic');
-            profileImage.onclick = function() {
-                openProfileModal(username, profilePicUrl);
-            };
 
             const text = document.createElement('span');
-            let badgeText = '';
+            text.innerHTML = `${username}: ${messageText}`;
 
-            if (username === 'Samir') {
-                badgeText = '<strong class="profile-owner-badge">Owner:</strong>';
-            } else if (username.toLowerCase() === 'piggy') {
-                badgeText = '<strong class="profile-developer-badge">Developer:</strong>';
-            }
-
-            text.innerHTML = `${badgeText} ${username}: ${messageText}`;
             message.appendChild(profileImage);
             message.appendChild(text);
             document.getElementById('messages-container').appendChild(message);
         }
 
-        function openProfileModal(username, profilePicUrl) {
-            document.getElementById('modal-username').textContent = username;
-            document.getElementById('modal-profile-pic').src = profilePicUrl || 'default-profile-pic.png';
-            document.getElementById('profile-modal').style.display = 'flex';
-        }
-
-        function closeProfileModal() {
-            document.getElementById('profile-modal').style.display = 'none';
-        }
-
-        function signOut() {
-            localStorage.removeItem('username');
-            localStorage.removeItem('profilePic');
-            window.location.href = 'login.html';
-        }
-    </script>
-
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
-<div class="header">
-    <div class="profile">
-        <img id="profile-pic" src="default-profile-pic.png" alt="Profile Picture">
-        <div class="username" id="username-display"></div>
-        <div id="owner-badge" class="profile-owner-badge" style="display: none;">Owner</div>
-        <div id="developer-badge" class="profile-developer-badge" style="display: none;">Contributor</div>
-    </div>
-</div>
-
-<div class="nav-buttons">
-    <button onclick="window.location.href='settings.html'">Settings</button>
-    <button onclick="window.location.href='profile.html'">Profile</button>
-    <button onclick="signOut()">Sign Out</button>
-</div>
-
-<div class="chat-box">
-    <input type="text" id="chat-input" placeholder="Type your message here...">
-    <div class="messages" id="messages-container"></div>
-</div>
-
-<div id="profile-modal" class="modal" onclick="closeProfileModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <img id="modal-profile-pic" src="default-profile-pic.png" alt="Profile Picture">
-        <h2 id="modal-username">Username</h2>
-        <button class="close-btn" onclick="closeProfileModal()">Close</button>
-    </div>
-</div>
-
-<script>
-    document.getElementById('chat-input').addEventListener('keypress', function (event) {
-        if (event.key === 'Enter') {
-            const messageText = event.target.value;
-            if (messageText) {
-                const username = localStorage.getItem('username') || 'Guest';
-                const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
-                sendMessage(username, messageText, profilePictureUrl);
-                event.target.value = '';
+        // Event listener for chat input (send message when Enter is pressed)
+        document.getElementById('chat-input').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                const messageText = event.target.value;
+                if (messageText) {
+                    const username = localStorage.getItem('username') || 'Guest';
+                    const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
+                    sendMessage(username, messageText, profilePictureUrl);
+                    event.target.value = ''; // Clear input field
+                }
             }
-        }
-    });
-</script>
+        });
 
+        // Initialize message listener on page load
+        window.onload = function() {
+            listenForMessages();
+        };
+    </script>
 </body>
 </html>

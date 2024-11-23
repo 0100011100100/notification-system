@@ -1,38 +1,36 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const firebase = require('firebase');
+require('dotenv').config();
+
 const app = express();
-const firebase = require('firebase-admin');
-
-// Initialize Firebase Admin SDK
-firebase.initializeApp({
-    credential: firebase.credential.cert(require('./serviceAccountKey.json')), 
-    databaseURL: 'https://chatapp-90c78.firebaseio.com'
-});
-
-const db = firebase.database();
 const port = process.env.PORT || 3000;
 
-app.use(express.static('public'));
-app.use(express.json());
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
 
-// Endpoint to fetch messages
-app.get('/messages', (req, res) => {
-    db.ref('messages').once('value', snapshot => {
-        res.json(snapshot.val());
-    });
+// Firebase configuration (without service account key)
+const firebaseConfig = {
+    apiKey: "AIzaSyAe0hXfAJ0ijKNiGgAVfv4zG1ngADF2E4c",
+    authDomain: "chatapp-90c78.firebaseapp.com",
+    projectId: "chatapp-90c78",
+    storageBucket: "chatapp-90c78.appspot.com",
+    messagingSenderId: "195015101932",
+    appId: "1:195015101932:web:f352296f341c58458a84c9",
+    databaseURL: "https://chatapp-90c78-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Routes
+app.get('/', (req, res) => {
+    res.send('Notification system is running');
 });
 
-// Endpoint to add new message
-app.post('/messages', (req, res) => {
-    const { username, message, profilePic } = req.body;
-    db.ref('messages').push({
-        username,
-        message,
-        profilePic,
-        timestamp: new Date().toISOString()
-    }).then(() => res.status(200).send('Message sent.'));
-});
-
-// Start server
+// Start the server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
