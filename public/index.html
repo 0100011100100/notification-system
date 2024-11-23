@@ -3,178 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification System</title>
-    <style>
-        body {
-            background-color: #121212;
-            color: white;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
+    <title>Dashboard</title>
 
-        .container {
-            width: 80%;
-            margin: 0 auto;
-            padding-top: 20px;
-        }
-
-        button {
-            background-color: #6200ea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #3700b3;
-        }
-
-        #message-container {
-            margin-top: 20px;
-            border-radius: 10px;
-            padding: 10px;
-            background-color: #333;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .message {
-            background-color: #444;
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .message:hover {
-            background-color: #555;
-        }
-
-        .notification {
-            background-color: #ff9800;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-size: 16px;
-            display: none; /* Hide initially */
-        }
-
-        input, textarea {
-            background-color: #333;
-            color: white;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 10px;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        input[type="text"] {
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Push Notification System</h1>
-
-        <button id="enableNotificationsBtn">Enable Notifications</button>
-
-        <div id="notification" class="notification">
-            Notification sent!
-        </div>
-
-        <div>
-            <h2>Send Message</h2>
-            <input type="text" id="messageInput" placeholder="Enter message to send...">
-            <button id="sendMessageBtn">Send Message</button>
-        </div>
-
-        <div id="message-container"></div>
-    </div>
-
+    <!-- Firebase Configuration -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
-        // Check for push notification support
-        if ('Notification' in window && 'serviceWorker' in navigator) {
-            // Enable notifications button
-            const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
-            const sendMessageBtn = document.getElementById('sendMessageBtn');
-            const messageInput = document.getElementById('messageInput');
-            const messageContainer = document.getElementById('message-container');
-            const notification = document.getElementById('notification');
-            let subscription = null;
+        const firebaseConfig = {
+            apiKey: "AIzaSyAe0hXfAJ0ijKNiGgAVfv4zG1ngADF2E4c",
+            authDomain: "chatapp-90c78.firebaseapp.com",
+            projectId: "chatapp-90c78",
+            storageBucket: "chatapp-90c78.appspot.com",
+            messagingSenderId: "195015101932",
+            appId: "1:195015101932:web:f352296f341c58458a84c9",
+            databaseURL: "https://chatapp-90c78-default-rtdb.firebaseio.com"
+        };
 
-            // Register Service Worker
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(reg => {
-                    console.log('Service Worker Registered');
-                    // Ask for permission to show notifications
-                    enableNotificationsBtn.addEventListener('click', () => {
-                        Notification.requestPermission().then(permission => {
-                            if (permission === 'granted') {
-                                reg.pushManager.subscribe({
-                                    userVisibleOnly: true,
-                                    applicationServerKey: 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4'
-                                }).then(sub => {
-                                    subscription = sub;
-                                    console.log('Subscription successful:', subscription);
-                                    // Send subscription to the server
-                                    fetch('/subscribe', {
-                                        method: 'POST',
-                                        body: JSON.stringify(subscription),
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        }
-                                    }).then(() => {
-                                        enableNotificationsBtn.disabled = true;
-                                        notification.style.display = 'block';
-                                    }).catch(err => console.error('Failed to subscribe:', err));
-                                }).catch(err => console.error('Subscription failed:', err));
-                            } else {
-                                console.log('Notification permission denied');
-                            }
-                        });
-                    });
-                }).catch(err => console.error('Service Worker Registration failed:', err));
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-            // Send message button
-            sendMessageBtn.addEventListener('click', () => {
-                const message = messageInput.value;
-                if (message && subscription) {
-                    fetch('/send-notification', {
-                        method: 'POST',
-                        body: JSON.stringify({ message }),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }).then(response => response.json())
-                      .then(data => {
-                          console.log(data.message);
-                          addMessageToContainer(message);
-                      })
-                      .catch(err => console.error('Failed to send notification:', err));
+        function sendMessage(username, messageText, profilePicUrl) {
+            db.ref('messages').push().set({
+                username: username,
+                message: messageText,
+                profilePic: profilePicUrl,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function listenForMessages() {
+            db.ref('messages').on('child_added', (snapshot) => {
+                const messageData = snapshot.val();
+                addMessageToChat(messageData.username, messageData.message, messageData.profilePic);
+            });
+        }
+
+        function checkUserBan(username) {
+            db.ref('bannedUsers/' + username).once('value').then(snapshot => {
+                if (snapshot.val()) {
+                    window.location.href = 'login.html';
+                }
+            });
+        }
+
+        function hasDeveloperBadge(username) {
+            return db.ref('users/' + username + '/badges/developer').once('value').then(snapshot => !!snapshot.val());
+        }
+
+        window.onload = function() {
+            const username = localStorage.getItem('username') || 'Guest';
+            const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
+
+            checkUserBan(username);
+            hasDeveloperBadge(username).then(hasBadge => {
+                if (hasBadge) {
+                    document.getElementById('developer-badge').style.display = 'inline-block';
                 }
             });
 
-            // Add message to the message container (User interface)
-            function addMessageToContainer(message) {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('message');
-                messageElement.innerHTML = message;
-                messageElement.addEventListener('click', () => {
-                    alert(`You replied to: ${message}`);
-                });
-                messageContainer.appendChild(messageElement);
+            document.getElementById('username-display').textContent = username;
+            document.getElementById('profile-pic').src = profilePictureUrl;
+            listenForMessages();
+        };
+
+        function addMessageToChat(username, messageText, profilePicUrl) {
+            const message = document.createElement('div');
+            message.classList.add('message');
+
+            const profileImage = document.createElement('img');
+            profileImage.src = profilePicUrl || 'default-profile-pic.png';
+            profileImage.classList.add('profile-pic');
+            profileImage.onclick = function() {
+                openProfileModal(username, profilePicUrl);
+            };
+
+            const text = document.createElement('span');
+            let badgeText = '';
+
+            if (username === 'Samir') {
+                badgeText = '<strong class="profile-owner-badge">Owner:</strong>';
+            } else if (username.toLowerCase() === 'piggy') {
+                badgeText = '<strong class="profile-developer-badge">Developer:</strong>';
             }
-        } else {
-            alert('Your browser does not support push notifications');
+
+            text.innerHTML = `${badgeText} ${username}: ${messageText}`;
+            message.appendChild(profileImage);
+            message.appendChild(text);
+            document.getElementById('messages-container').appendChild(message);
+        }
+
+        function openProfileModal(username, profilePicUrl) {
+            document.getElementById('modal-username').textContent = username;
+            document.getElementById('modal-profile-pic').src = profilePicUrl || 'default-profile-pic.png';
+            document.getElementById('profile-modal').style.display = 'flex';
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profile-modal').style.display = 'none';
+        }
+
+        function signOut() {
+            localStorage.removeItem('username');
+            localStorage.removeItem('profilePic');
+            window.location.href = 'login.html';
         }
     </script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="header">
+    <div class="profile">
+        <img id="profile-pic" src="default-profile-pic.png" alt="Profile Picture">
+        <div class="username" id="username-display"></div>
+        <div id="owner-badge" class="profile-owner-badge" style="display: none;">Owner</div>
+        <div id="developer-badge" class="profile-developer-badge" style="display: none;">Contributor</div>
+    </div>
+</div>
+
+<div class="nav-buttons">
+    <button onclick="window.location.href='settings.html'">Settings</button>
+    <button onclick="window.location.href='profile.html'">Profile</button>
+    <button onclick="signOut()">Sign Out</button>
+</div>
+
+<div class="chat-box">
+    <input type="text" id="chat-input" placeholder="Type your message here...">
+    <div class="messages" id="messages-container"></div>
+</div>
+
+<div id="profile-modal" class="modal" onclick="closeProfileModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <img id="modal-profile-pic" src="default-profile-pic.png" alt="Profile Picture">
+        <h2 id="modal-username">Username</h2>
+        <button class="close-btn" onclick="closeProfileModal()">Close</button>
+    </div>
+</div>
+
+<script>
+    document.getElementById('chat-input').addEventListener('keypress', function (event) {
+        if (event.key === 'Enter') {
+            const messageText = event.target.value;
+            if (messageText) {
+                const username = localStorage.getItem('username') || 'Guest';
+                const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
+                sendMessage(username, messageText, profilePictureUrl);
+                event.target.value = '';
+            }
+        }
+    });
+</script>
+
 </body>
 </html>

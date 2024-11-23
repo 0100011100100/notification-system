@@ -1,90 +1,38 @@
 const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const webpush = require('web-push');
-const fs = require('fs');
-
 const app = express();
-const port = 3001;  // Updated port to avoid conflict
+const firebase = require('firebase-admin');
 
-// VAPID keys (update with your generated keys)
-const publicKey = 'BGLwbzz_qBlUqsEis2xT67hoGW2TQxuuN6UPZjWzRlV76oLSF6YAvB2CM9w2JQuDVb0Tu6JfZvVvmpDq0nM9Y_4';
-const privateKey = 'oGv-7xJ63OpthC4IYU_Q_HH7DepSmtAveYxFi7CzgkY';
-
-// Configure webpush with VAPID keys
-webpush.setVapidDetails(
-    'mailto:alsowebhook@gmail.com',  // Email for subscription notifications
-    publicKey,
-    privateKey
-);
-
-// Middleware
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.json());
-
-// Serve the index.html when the user visits the root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// Initialize Firebase Admin SDK
+firebase.initializeApp({
+    credential: firebase.credential.cert(require('./serviceAccountKey.json')), 
+    databaseURL: 'https://chatapp-90c78.firebaseio.com'
 });
 
-// Handle the subscription request from the client
-app.post('/subscribe', (req, res) => {
-    const subscription = req.body;
-    console.log('User subscribed:', subscription);
+const db = firebase.database();
+const port = process.env.PORT || 3000;
 
-    // Save the subscription in a file (could be a database in production)
-    fs.readFile('subscriptions.json', (err, data) => {
-        let subscriptions = [];
-        if (err) {
-            console.error(err);
-        } else {
-            subscriptions = JSON.parse(data);
-        }
+app.use(express.static('public'));
+app.use(express.json());
 
-        subscriptions.push(subscription);
-
-        fs.writeFile('subscriptions.json', JSON.stringify(subscriptions), (err) => {
-            if (err) {
-                console.error(err);
-                res.sendStatus(500);
-            } else {
-                res.status(201).send('Subscription added');
-            }
-        });
+// Endpoint to fetch messages
+app.get('/messages', (req, res) => {
+    db.ref('messages').once('value', snapshot => {
+        res.json(snapshot.val());
     });
 });
 
-// Send notifications to all subscribed users
-app.post('/send-notification', (req, res) => {
-    const { message } = req.body;
-
-    fs.readFile('subscriptions.json', (err, data) => {
-        if (err) {
-            console.error(err);
-            res.sendStatus(500);
-            return;
-        }
-
-        const subscriptions = JSON.parse(data);
-
-        const payload = JSON.stringify({ message });
-
-        // Send notifications to each subscriber
-        subscriptions.forEach(subscription => {
-            webpush.sendNotification(subscription, payload)
-                .then(response => {
-                    console.log('Notification sent', response);
-                })
-                .catch(err => {
-                    console.error('Error sending notification', err);
-                });
-        });
-
-        res.status(200).json({ message: 'Notification sent to all subscribers' });
-    });
+// Endpoint to add new message
+app.post('/messages', (req, res) => {
+    const { username, message, profilePic } = req.body;
+    db.ref('messages').push({
+        username,
+        message,
+        profilePic,
+        timestamp: new Date().toISOString()
+    }).then(() => res.status(200).send('Message sent.'));
 });
 
-// Start the server
+// Start server
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 });
