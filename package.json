@@ -1,0 +1,12 @@
+{
+    "name": "notification-system",
+    "version": "1.0.0",
+    "description": "WebSocket-based notification system",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "ws": "^8.11.0"
+    }
+  }
