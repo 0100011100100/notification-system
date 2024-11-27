@@ -1,36 +1,36 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const firebase = require('firebase');
-require('dotenv').config();
+const WebSocket = require('ws');
+const path = require('path');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Firebase configuration (without service account key)
-const firebaseConfig = {
-    apiKey: "AIzaSyAe0hXfAJ0ijKNiGgAVfv4zG1ngADF2E4c",
-    authDomain: "chatapp-90c78.firebaseapp.com",
-    projectId: "chatapp-90c78",
-    storageBucket: "chatapp-90c78.appspot.com",
-    messagingSenderId: "195015101932",
-    appId: "1:195015101932:web:f352296f341c58458a84c9",
-    databaseURL: "https://chatapp-90c78-default-rtdb.firebaseio.com"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// Routes
-app.get('/', (req, res) => {
-    res.send('Notification system is running');
+// Start HTTP server
+const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// WebSocket server
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+    console.log('New client connected');
+
+    ws.on('message', (message) => {
+        if (message === 'open-tabs') {
+            // Broadcast to all connected clients
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send('open-tabs');
+                }
+            });
+        }
+    });
+
+    ws.on('close', () => {
+        console.log('Client disconnected');
+    });
 });

@@ -3,88 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification System</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Open Tabs for Everyone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <div id="messages-container"></div>
-        <div id="chat-box">
-            <input type="text" id="chat-input" placeholder="Type a message..." />
-        </div>
-    </div>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAe0hXfAJ0ijKNiGgAVfv4zG1ngADF2E4c",
-            authDomain: "chatapp-90c78.firebaseapp.com",
-            projectId: "chatapp-90c78",
-            storageBucket: "chatapp-90c78.appspot.com",
-            messagingSenderId: "195015101932",
-            appId: "1:195015101932:web:f352296f341c58458a84c9",
-            databaseURL: "https://chatapp-90c78-default-rtdb.firebaseio.com"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        // Function to send messages
-        function sendMessage(username, messageText, profilePicUrl) {
-            db.ref('messages').push().set({
-                username: username,
-                message: messageText,
-                profilePic: profilePicUrl,
-                timestamp: new Date().toISOString()
-            });
-        }
-
-        // Listen for new messages
-        function listenForMessages() {
-            db.ref('messages').on('child_added', (snapshot) => {
-                const messageData = snapshot.val();
-                addMessageToChat(messageData.username, messageData.message, messageData.profilePic);
-            });
-        }
-
-        // Add message to chat container
-        function addMessageToChat(username, messageText, profilePicUrl) {
-            const message = document.createElement('div');
-            message.classList.add('message');
-
-            const profileImage = document.createElement('img');
-            profileImage.src = profilePicUrl || 'default-profile-pic.png';
-            profileImage.classList.add('profile-pic');
-
-            const text = document.createElement('span');
-            text.innerHTML = `${username}: ${messageText}`;
-
-            message.appendChild(profileImage);
-            message.appendChild(text);
-            document.getElementById('messages-container').appendChild(message);
-        }
-
-        // Event listener for chat input (send message when Enter is pressed)
-        document.getElementById('chat-input').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                const messageText = event.target.value;
-                if (messageText) {
-                    const username = localStorage.getItem('username') || 'Guest';
-                    const profilePictureUrl = localStorage.getItem('profilePic') || 'default-profile-pic.png';
-                    sendMessage(username, messageText, profilePictureUrl);
-                    event.target.value = ''; // Clear input field
-                }
-            }
-        });
-
-        // Initialize message listener on page load
-        window.onload = function() {
-            listenForMessages();
-        };
-    </script>
+    <button id="openTabsButton">Open Tabs for Everyone</button>
+    <script src="script.js"></script>
 </body>
 </html>
